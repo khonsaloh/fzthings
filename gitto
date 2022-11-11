@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+
+export LESS='' \
+  autopushing='y'
+
+SHELL=$(command -v bash)
+
+_colorize() {
+  local string
+  string="${1//\[/\\033\[0;32m\[}"
+  string="${string//\]/\]\\033\[0m}"
+  printf '%b\n' "${string}"
+}
+
+export -f _colorize
+
+HEADER="$(_colorize "[ctrl-s] Go to stage [Escape] Exit
+[ctrl-b] Manage branches [ctrl-r] reset to selected commit [ctrl-f] Push commit to remote
+[crtl-p] toggle preview [ctrl-c] make a new commit [crtl-t] Create a tag
+")
+
+"
+
+: "${PREVIEW:=off}" && export preview=' --preview-window=hidden'
+
+if [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" = 'true' ]; then
+  export dots='' \
+  head="REPO  $(basename $(git rev-parse --show-toplevel))"
+else
+  export dots=" --git-dir=$HOME/.local/share/.dotfiles.git --work-tree=$HOME " \
+  head="DOTFILES"
+fi
+
+add_tracked() {
+  git $dots add "$1"
+}
+remove_tracked() {
+  git $dots rm --cached "$1"
+}
+
+search_pattern() {
+  printf '%s' "pon patron a buscar: "
+  read -r patron
+  #git -P $dots grep -n --color=always "$patron" | less -R
+  sel=$(git -P $dots grep -n --color=always --column "$patron" \
+    | fzf --ansi -d':' --with-nth 1,2,4.. \
+    --bind "enter:execute(echo {1,2,3})+abort")
+linea="$(echo $sel | cut -d':' -f2)"
+
+ [ -n "$sel" ] && $EDITOR +"call cursor($linea,${sel##*:})" "${sel%%:*}"
+}
+stagio() {
+  git $dots -c color.status=always status --short --branch
+}
+
+export -f add_tracked stagio remove_tracked search_pattern
+  
+
+stage() {
+local HEADER="$(_colorize "[tab] toggle selection [escape] Return
+[ctrl-a] add file to stage [ctrl-r] remove from stage [ctrl-p] Toggle preview
+[enter] edit file [ctrl-c] Make a new commit [ctrl-f] Search for pattern
+")
+
+"
+  stagio \
+    | fzf --ansi --header="$head
+$HEADER" -m $preview \
+  --header-lines=1 \
+  --header-first \
+  --no-info \
+    --preview="git -c color.ui=always diff $( echo {} | awk '{print $2}') " \
+    --bind "ctrl-a:execute(add_tracked {2})+reload(stagio)" \
+    --bind "ctrl-r:execute(remove_tracked {2})+reload(stagio)" \
+    --bind "enter:execute($EDITOR {2})+reload(stagio)" \
+    --bind "ctrl-c:execute(git $dots commit)+reload(stagio)" \
+    --bind "ctrl-f:execute(search_pattern)" \
+    --bind "ctrl-s:toggle-all" \
+  --bind "ctrl-p:toggle-preview" 
+}
+
+# branches {{{
+
+reset_commit() {
+  clear
+  printf '%s' "are you sure you want to go back to this commit? (y/n)"
+  read -n1 -r confirmation
+  [[ "$confirmation" = 'y' ]] \
+    && git $dots reset --hard "$@" 
+}
+
+merge_branch() {
+  clear
+  printf '%s\n' "are you sure you want to merge $1 into ? (y/n) "
+  read -n1 -r confirmation
+  [[ "$confirmation" = 'y' ]] \
+    && git merge $1 
+}
+
+new_branch() {
+  clear
+  echo -n "nombre de la nueva rama: " && read -r rama \
+            && git branch "$rama"
+}
+rename_branch() {
+  clear
+  echo -n "nombre nuevo de la rama: " && read -r rama \
+            && git branch -m "$rama"
+}
+delete_branch() {
+  clear
+  printf '%s' "eliminar $@: (y/n) "
+  read -n1 -r confirmation
+  [[ "$confirmation" = 'y' ]] \
+            && git branch -d "$@"
+}
+#}}}
+export -f merge_branch new_branch delete_branch rename_branch
+
+crear_tag() {
+  clear
+  printf '%s' "pon nombre: "
+  read -r nombre
+  git tag "$nombre"
+}
+
+branch(){
+  git $dots branch | tr -d ' '
+}
+export -f branch
+
+manage_branches() {
+local HEADER="$(_colorize "[Enter] Change branch [Escape] Return
+[ctrl-m] Merge branch [ctrl-n] Create new branch [ctrl-d] Delete branch
+[ctrl-r] Rename branch
+")
+
+"
+  branch \
+    | fzf --bind "ctrl-m:execute(merge_branch {})" \
+    --bind "ctrl-n:execute(new_branch)+reload(branch)" \
+    --bind "ctrl-r:execute(rename_branch)+reload(branch)" \
+    --bind "ctrl-d:execute(delete_branch {})+reload(branch)" \
+    --bind "enter:execute(git checkout {})+reload(branch)" \
+    --header="$head $HEADER" --prompt="ramas: " 
+ # git $dots checkout $(git branch | fzf --prompt="ramas: " | tr -d " ") >/dev/null 2>&1
+}
+
+_comando() {
+git $dots log \
+  --color=always \
+  --format="%C(cyan)%h %C(blue)%ad %C(cyan)%an %C(auto)%d \
+  %C(yellow)%s%+b %C(black)%ae"  \
+  --date=iso8601-local
+}
+export -f _comando manage_branches stage reset_commit crear_tag
+
+loga() {
+_comando |
+  fzf -i -e +s \
+  --reverse \
+  --tiebreak=index \
+  -m \
+  --ansi $preview \
+  --with-nth 2.. \
+  --preview="echo {} |
+  grep -o '[a-f0-9]\{7\}' |
+  head -1 |
+  xargs -I % sh -c 'git $dots show --color=always % |
+  diff-so-fancy'" \
+  --header "$head 
+$HEADER" \
+  --bind "enter:execute(git $dots -c color.ui=always diff {1})" \
+  --bind "ctrl-s:execute:clear; (stage)" \
+  --bind "ctrl-m:execute:git $dots ls-files | less -R" \
+  --bind "ctrl-p:toggle-preview" \
+  --bind "ctrl-f:execute:git $dots remote | xargs -r -L1 git $dots push --all" \
+  --bind "ctrl-r:execute(reset_commit {1})+reload(_comando)" \
+  --bind 'ctrl-b:execute(manage_branches)+reload(_comando)' \
+  --bind 'ctrl-t:execute(crear_tag)+reload(_comando)' \
+  --bind "ctrl-c:execute(git $dots commit || notify-send 'nothing to be commited' 2>/dev/null)+reload(_comando)" 
+}
+#  --bind 'ctrl-b:execute(git $dots checkout $(git branch | fzf --prompt="ramas: " | tr -d " ") >/dev/null 2>&1)+reload(_comando)' \
+  #--bind "ctrl-l:execute:clear; git $dots -c color.status=always status --short --branch | less -RX" \
+
+
+
+
+#--bind "ctrl-c:execute:echo {1} |
+  #xclip -r -selection clipboard"
+  #--bind "ctrl-l:execute:clear; git $dots -c color.status=always status | less -RX" \
+  #--bind "ctrl-b:execute:(git $dots checkout $(git branch | fzf --height 10%) master)" \
+
+loga
+#loga() {
+#git $dots log \
+#  --color=always \
+#  --format="%C(cyan)%h %C(blue)%ad %C(cyan)%an %C(auto)%d \
+#  %C(yellow)%s%+b %C(black)%ae" "$@" \
+#  --date=iso8601-local |
+#  fzf -i -e +s \
+#  --reverse \
+#  --tiebreak=index \
+#  -m \
+#  --ansi $preview \
+#  --with-nth 2.. \
+#  --preview="echo {} |
+#  grep -o '[a-f0-9]\{7\}' |
+#  head -1 |
+#  xargs -I % sh -c 'git $dots show --color=always % |
+#  diff-so-fancy'" \
+#  --header "$head
+#  $HEADER" \
+#  --bind "enter:execute:git $dots -c color.ui=always diff {1} " \
+#  --bind "ctrl-l:execute:clear; git $dots -c color.status=always status --short --branch | less -RX" \
+#  --bind "ctrl-t:execute:git $dots ls-files | less -R" \
+#  --bind "ctrl-p:toggle-preview" \
+#  --bind "ctrl-f:execute:git $dots remote | xargs -L1 git push --all" \
+#  --bind "ctrl-r:execute(git $dots reset --hard {1})+reload(_comando)" \
+#  --bind "ctrl-c:execute(git $dots commit)+reload(notify-send 'hola')"
+##  --bind 'ctrl-b:execute:git $dots checkout "$(git branch | fzf --prompt="ramas: " | tr -d "*")"' 
+#}
+
+# vim:foldmethod=marker
+

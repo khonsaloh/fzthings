@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+
+#command -v apt >/dev/null
+#command -v pacman >/dev/null
+#command -v xbps >/dev/null
+
+: "${SELECT_MIRRORS:="netselect-apt"}"
+export SELECT_MIRRORS
+export LESS=''
+SHELL=$(command -v bash)
+
+if command -v sudo >/dev/null; then
+  export priv="sudo "
+elif command -v doas >/dev/null; then
+  export  priv="doas "
+fi
+
+: "${no_confirm:=1}"
+
+_colorize() {
+  local string
+  string="${1//\[/\\033\[0;32m\[}"
+  string="${string//\]/\]\\033\[0m}"
+  printf '%b\n' "${string}"
+}
+
+: "${install:=enter}"
+: "${remove_pkgs:=ctrl-r}"
+: "${install_pkgs:=ctrl-i}"
+: "${purge:=ctrl-p}"
+: "${upgrade_all:=ctrl-u}"
+: "${set_fastest_mirrors:=ctrl-m}"
+: "${list_installed:=ctrl-l}"
+: "${clean_cache:=ctrl-w}"
+: "${history:=ctrl-h}"
+: "${show_repositories:=ctrl-s}"
+: "${show_files:=ctrl-z}"
+: "${download_package:=ctrl-d}"
+: "${other:=ctrl-o}"
+
+HEADER_PKGS="$(_colorize "[$upgrade_all] Update system [Escape] Exit
+[$remove_pkgs] Remove package [$install_pkgs] Install package [$purge] Purge
+[$set_fastest_mirrors] set fastest mirrors [$list_installed] list Installed
+[$show_files] ver paquete archivo
+")
+
+"
+
+[ "$no_confirm" = '1' ] && export no_prompt='-y'
+#apt search -o APT::Cache::Search::Version=1 foo
+
+_set_fastest_mirrors() {
+  $priv $SELECT_MIRRORS
+}
+
+_upgrade_all() {
+  $priv apt update $no_prompt && $priv apt upgrade $no_prompt \
+    && notify-send "updated succesfully" 2>/dev/null
+}
+
+_remove_pkgs() {
+  $priv apt autoremove "$@" $no_prompt
+}
+
+_purge() {
+  $priv apt purge && notify-send "purged succesfully" 2>/dev/null
+}
+
+_show_repositories() {
+   grep -s -h '^#*[ ]*deb' /etc/apt/sources.list.d/* \
+            | grep -v '^#' | less -R
+}
+
+_list_installed() {
+  dpkg -l
+}
+
+_download_package() {
+  cd /tmp; $priv apt download "$@" \
+    && notify-send "descagado en /tmp" 2>/dev/null
+}
+
+_dry_run() {
+  $priv apt install "$@" -s \
+    || $priv apt autoremove "$@" -s
+}
+
+_show_files_package() {
+  clear
+  echo 'pon nombre' ; read -r nombre
+  dpkg -L "$nombre" | less
+}
+
+_install() {
+   $priv apt install "$@" $no_prompt
+}
+
+_package_file() {
+  clear
+  echo 'pon binario: '; read -r binario
+  dpkg -S "$binario" | grep /$binario$ | less
+}
+
+_is_installed() {
+  dpkg-query -l "$@" >/dev/null 2>&1
+}
+
+toggle_install() {
+  dpkg-query -l "$@" >/dev/null 2>&1 \
+    && { $priv apt-get install "$@"; return; }
+  $priv apt-get autoremove "$@"
+}
+
+export -f _upgrade_all _remove_pkgs _set_fastest_mirrors _install \
+  _purge _list_installed _show_repositories _download_package \
+  _dry_run _show_files_package _is_installed \
+  _package_file
+
+_select () {
+  apt-cache search '' | fzf \
+    --prompt='busca: '\
+    --marker="M" \
+    --ansi \
+    --layout=reverse \
+    --cycle \
+    --multi \
+    --inline-info \
+    --header="${HEADER_PKGS}" \
+    --border="${BORDER:-sharp}" \
+    --preview "apt-cache show {1} 2>/dev/null" \
+    --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}" \
+    --exact \
+    -i \
+    --bind "$install_pkgs:execute(_install {+1})" \
+    --bind "$list_installed:execute(_list_installed)" \
+    --bind "$upgrade_all:execute(_upgrade_all)" \
+    --bind "$set_fastest_mirrors:execute(_set_fastest_mirrors)" \
+    --bind "$purge:execute(_purge)" \
+    --bind "$show_repositories:execute(_show_repositories)" \
+    --bind "$show_files:execute(_package_file {})" \
+    --bind "$download_package:execute(_download_package {1})" \
+    --bind "$other:execute(_is_installed {1})" \
+    --bind "$remove_pkgs:execute(_remove_pkgs {+1})"
+}
+
+_select 

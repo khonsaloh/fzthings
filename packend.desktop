@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=2.2
+Name=packend
+Comment=Package manager frontend
+GenericName=Package manager frontend
+Exec=env FDELAY=1 packend
+Type=Application
+Terminal=true
