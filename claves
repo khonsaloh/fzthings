@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#trap 'return' INT
+trap 'exit 0' INT
 
 # keyservers
 #hkps://pgp.surf.nl (ex-SKS pool)
@@ -18,7 +18,7 @@ _colorize() {
 export -f _colorize
 
 edit_key=ctrl-e
-remove_pkgs=ctrl-r
+revok_key=ctrl-a
 recv_keys=ctrl-r
 tab=tab
 key_gen=ctrl-g
@@ -29,7 +29,7 @@ upload_key=ctrl-u
 search_key=ctrl-k
 
 export HEADER="$(_colorize "[$key_gen] Generar llaves [$del_key] Eliminar clave
-[$exp_key] Exportar llave [$tab] cambio entre llaveros
+[$exp_key] Exportar llave [$tab] cambio entre llaveros [$revok_key] Revocar clave
 [$edit_key] Editar llave [$recv_keys] Recibir llaves
 [$imp_key] Importar llave [$upload_key] Subir llave
 ")
@@ -94,19 +94,27 @@ _listar_archivos() {
 }
 
 _revocar_clave() {
-echo hola
+  printf '%s' "quieres dejar sin validez $1 (s/n) "
+  read -r respuesta
+  [ "$respuesta" = 's' ] || return
+  huella=$(gpg --list-keys --with-colons $1 \
+    | grep -m1 '^fpr' | cut -d':' -f10)
+  gpg --output revoke.asc --gen-revoke $huella || return
+  gpg --import revoke.asc
+  gpg --keyserver hkps://keyserver.ubuntu.com \
+    --search-keys $huella
+  gpg --keyserver hkps://keyserver.ubuntu.com --send-keys $huella
 }
 
 _search_key() {
   uid=$(xclip -o | cut -d'/' -f2)
-  gpg --search-keys \
-    --keyserver hkps://keyserver.ubuntu.com $uid
+  gpg --keyserver hkps://keyserver.ubuntu.com --search-keys $uid
 #  gpg --list-key $uid \
 #    && notify-send "llave importada correctamente"
 }
 
 _subir_clave() {
-  printf '%s' "quieres compartir la llave $1? (s/n)"
+  printf '%s' "quieres compartir la llave $1? (s/n) "
   read -r respuesta
   [ "$respuesta" = 's' ] || return
   llave=$(gpg --with-colons --list-key $1 \
@@ -129,6 +137,7 @@ main() {
     --bind "ctrl-e:execute(gpg --edit-key {2..})" \
     --bind "ctrl-d:execute(_eliminar_clave)" \
     --bind "ctrl-s:execute(_listar_archivos)" \
+    --bind "ctrl-a:execute(_revocar_clave {2..})+reload(_claves_publicas)" \
     --bind "ctrl-r:execute(_search_key)+reload(_claves_privadas)" \
     --bind "ctrl-i:execute(_importar_llave)+reload(_claves_privadas)" \
     --bind "ctrl-u:execute(_subir_clave {2..})" \
@@ -145,6 +154,7 @@ sec() {
   --inline-info \
   --bind change:first \
   --bind "ctrl-d:execute(_eliminar_clave {2..})+reload(_claves_publicas)" \
+  --bind "ctrl-a:execute(_revocar_clave {2..})+reload(_claves_publicas)" \
   --bind "ctrl-x:execute(gpg --output {2..}.pgp --armor --export {2..} )" \
   --bind "ctrl-u:execute(_subir_clave {2..})" \
   --bind "ctrl-i:execute(_importar_llave)+reload(_claves_publicas)" \
@@ -158,6 +168,6 @@ sec() {
 export -f main sec _verificar_firma_digital _claves_privadas \
   _claves_publicas _crear_par_de_llaves _desencriptar \
   _firmar_digitalmente _eliminar_clave _exportar_clave _subir_clave \
-  _listar_archivos _importar_llave _search_key 
+  _listar_archivos _importar_llave _search_key _revocar_clave
 
 sec
