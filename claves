@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+
+#trap 'return' INT
+
+# keyservers
+#hkps://pgp.surf.nl (ex-SKS pool)
+#hkp://pgp.rediris.es
+
+SHELL=$(command -v bash)
+
+_colorize() {
+  local string
+  string="${1//\[/\\033\[0;32m\[}"
+  string="${string//\]/\]\\033\[0m}"
+  printf '%b\n' "${string}"
+}
+
+export -f _colorize
+
+: "${edit_key:=ctrl-e}"
+: "${remove_pkgs:=ctrl-r}"
+: "${recv_keys:=ctrl-r}"
+: "${tab:=tab}"
+: "${key_gen:=ctrl-g}"
+: "${del_key:=ctrl-d}"
+: "${exp_key:=ctrl-x}"
+: "${imp_key:=ctrl-i}"
+: "${upload_key:=ctrl-u}"
+: "${search_key:=ctrl-k}"
+
+export HEADER="$(_colorize "[${key_gen}] Generar llaves [${del_key}] Eliminar clave
+[${exp_key}] Exportar llave [${tab}] cambio entre llaveros
+[${edit_key}] Editar llave [${recv_keys}] Recibir claves
+[$imp_key] Importar llave [${upload_key}] Subir llave
+")
+
+"
+
+_desencriptar(){
+  _listar_archivos
+  gpg --decrypt "$archivo"
+}
+
+_importar_llave() {
+#  printf '%s' "importar desde portapapeles o archivo local?"
+#  read -r respuesta
+ # [ "$respuesta" = "portapapeles" ] \
+#    && xclip -o | gpg --recieve-keys && return 0
+  _listar_archivos && gpg --import $archivo \
+    && notify-send "llave $archivo importada con exito"
+}
+
+_eliminar_clave() {
+  gpg --delete-keys "$1"
+  ! gpg --list-keys "$1" \
+    && notify-send "clave eliminada con exito"
+}
+
+_encriptar_simetricamente() {
+  gpg --symmetric "$@"
+}
+
+_verificar_firma_digital() {
+  gpg --verify $1 $2
+}
+
+_firmar_digitalmente() {
+  _claves_publicas | fzf --prompt='claves publicas'
+  gpg --detach-sign $1 $2
+}
+
+_exportar_clave() {
+  gpg --export "$@"
+}
+
+_encriptar_asimetricamente() {
+  gpg --encrypt "$@"
+}
+
+_crear_par_de_llaves() {
+  gpg --full-generate-key --expert
+}
+
+_claves_privadas() {
+export header="claves privadas"
+  gpg --keyid-format LONG -K --with-colons \
+    | grep '^uid' | cut -d':' -f2,10
+}
+    
+_claves_publicas() {
+  export header="claves publicas"
+  gpg --keyid-format LONG -k --with-colons \
+    | grep '^uid' | cut -d':' -f2,10 | tr ':' '\t'
+}
+
+_listar_archivos() {
+  archivo=$(find . -maxdepth 1 -printf '%P\n' \
+    | fzf)
+}
+
+_search_key() {
+  gpg --search-keys \
+    --keyserver hkps://keyserver.ubuntu.com $(xclip -o | cut -d'/' -f2)
+  gpg --list-key $(xclip -o | cut -d'/' -f2) \
+    && notify-send "llave importada correctamente"
+}
+
+_subir_clave() {
+  llave=$(gpg --with-colons --list-key $1 \
+    | grep -m 1 '^fpr'| cut -d':' -f10)
+  [ "$llave" ] && gpg --keyserver keyserver.ubuntu.com --send-keys $llave
+}
+
+preview() {
+  echo hola
+}
+
+#_recibir_clave() {
+#  if [ $(xclip -o | grep -q '^http') ]; then
+#    curl -sL "$(xclip -o)" | xargs -0 gpg --receive-keys
+#  else
+#    xclip -o | cut -d'/' -f2 \
+#      | xargs gpg --keyserver hkps://keyserver.ubuntu.com \
+#      --receive-keys && notify-send "llave importada con exito"
+#  fi
+#}
+
+main() {
+#HEADER="$(_colorize "[${key_gen}] Generar llaves [Escape] Exit
+#[${tab^^}] moverse entre llaveros [${install_pkgs^^}] Install package
+#[${set_fastest_mirrors^^}] set fastest mirrors [${list_installed^^}] list Installed
+#")
+#"
+  _claves_privadas | fzf --preview="gpg --list-key {2..}" \
+    --header="$HEADER" \
+    --prompt='LLAVERO PRIVADO: ' \
+    --inline-info \
+    --bind "ctrl-x:execute(gpg --output {2..}.pgp --armor --export-secret-key {2..} )" \
+    --bind "ctrl-f:execute(_firmar_digitalmente)" \
+    --bind "ctrl-e:execute(gpg --edit-key {2..})" \
+    --bind "ctrl-d:execute(_eliminar_clave)" \
+    --bind "ctrl-s:execute(_listar_archivos)" \
+    --bind "ctrl-r:execute(_search_key)+reload(_claves_privadas)" \
+    --bind "ctrl-i:execute(_importar_llave)+reload(_claves_privadas)" \
+    --bind "ctrl-u:execute(_subir_clave {2..})" \
+    --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_privadas)" \
+    --bind "ctrl-m:execute(gpg --with-colons --list-key {2..})" \
+    --bind "tab:abort" \
+    --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}"
+}
+    #--bind "ctrl-S:execute:gpg --keyserver keyserver.ubuntu.com --send-keys {2..}" \
+    #--bind "ctrl-r:execute(_recibir_clave)+reload(_claves_privadas)" \
+    #--bind "ctrl-b:execute(_claves_publicas)" \
+
+sec() {
+  _claves_publicas| fzf --preview="gpg --list-key {2..}" \
+  --header="$HEADER" \
+  --prompt='LLAVERO PUBLICO: ' \
+  --inline-info \
+  --bind change:first \
+  --bind "ctrl-d:execute(_eliminar_clave {2..})+reload(_claves_publicas)" \
+  --bind "ctrl-x:execute(gpg --output {2..}.pgp --armor --export {2..} )" \
+  --bind "ctrl-u:execute(_subir_clave {2..})" \
+  --bind "ctrl-i:execute(_importar_llave)+reload(_claves_publicas)" \
+  --bind "ctrl-r:execute(_search_key)+reload(_claves_publicas)" \
+  --bind "ctrl-e:execute(gpg --edit-key {2..})" \
+  --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_publicas)" \
+  --bind "tab:execute(main)" \
+  --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}"
+}
+  #--bind "ctrl-S:execute:gpg --keyserver keyserver.ubuntu.com --send-keys {2..}" \
+  #--bind "ctrl-r:execute(_recibir_clave)+reload(main)" \
+  #--bind "ctrl-k:execute(_search_key)" \
+
+export -f main sec _verificar_firma_digital _claves_privadas \
+  _claves_publicas _crear_par_de_llaves _desencriptar \
+  _firmar_digitalmente _eliminar_clave _exportar_clave _subir_clave \
+  _listar_archivos _importar_llave _search_key 
+
+sec
+#codigo_publica=$(gpg --list-key --with-colons $publicas | grep '^pub' | cut -d':' -f5)
+#codigo_privada=$(gpg --list-key --with-colons $privadas | grep '^pub' | cut -d':' -f5)
+
+#echo $codigo_publica
+#echo $codigo_privada
