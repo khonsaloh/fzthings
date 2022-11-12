@@ -80,12 +80,12 @@ _crear_par_de_llaves() {
 
 _claves_privadas() {
   gpg --keyid-format LONG -K --with-colons \
-    | grep '^uid' | cut -d':' -f2,10
+    | grep '^uid' | cut -d':' -f2,10 | tr ':' ' '
 }
-    
+
 _claves_publicas() {
   gpg --keyid-format LONG -k --with-colons \
-    | grep '^uid' | cut -d':' -f2,10 | tr ':' '\t'
+    | grep '^uid' | cut -d':' -f2,10 | tr ':' ' '
 }
 
 _listar_archivos() {
@@ -135,9 +135,9 @@ main() {
     --bind "ctrl-x:execute(gpg --output {2..}.pgp --armor --export-secret-key {2..} )" \
     --bind "ctrl-f:execute(_firmar_digitalmente)" \
     --bind "ctrl-e:execute(gpg --edit-key {2..})" \
-    --bind "ctrl-d:execute(_eliminar_clave)" \
+    --bind "ctrl-d:execute(_eliminar_clave)+reload(_claves_privadas)" \
     --bind "ctrl-s:execute(_listar_archivos)" \
-    --bind "ctrl-a:execute(_revocar_clave {2..})+reload(_claves_publicas)" \
+    --bind "ctrl-a:execute(_revocar_clave {2..})+reload(_claves_privadas)" \
     --bind "ctrl-r:execute(_search_key)+reload(_claves_privadas)" \
     --bind "ctrl-i:execute(_importar_llave)+reload(_claves_privadas)" \
     --bind "ctrl-u:execute(_subir_clave {2..})" \
