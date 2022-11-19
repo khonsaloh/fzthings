@@ -1,0 +1,58 @@
+#!/bin/sh
+
+signing_key='A5168DB66E3B3B29A21A9CD97AF8B84CDCDDDE4E'
+
+help() {
+  echo '
+  [-a]                    ascii
+  [-f <archivo>]          firmar documento
+  [-c <firma> <archivo>]  comprobar firma digital
+  [-e <archivo>]          encriptar con llave publica
+  [-g llave]              elegir llave a usar
+  '
+}
+
+[ "$1" ] || { help && exit; }
+
+firmar() {
+  [ "$ascii" ] || ext='.sig'
+  gpg \
+    --local-user $signing_key \
+    --sign \
+    $ascii \
+    --output $1$ext \
+    --detach-sign $1
+}
+
+#cript_simetrica() {
+#  gpg \
+#    --output $1 \
+#    -c $1
+#}
+
+cript_asim() {
+  [ -z "$ascii" ] && ext='.pgp'
+  gpg --batch $ascii \
+    --output $1$ext \
+    -r $signing_key -e $1
+}
+
+comprobar_firma() {
+  gpg --verify $1 #no acepta multiples argumentos
+}
+
+while getopts 'af:e:c:' OPT; do
+  case "$OPT" in
+    f) file="$OPTARG";;
+    e) encriptacion="$OPTARG";;
+    c) comprobar="$OPTARG";;
+    a) ascii='--armor'; ext='.asc';;
+    *) help; exit ;;
+  esac
+done
+
+shift $((OPTIND - 1))
+
+[ "$comprobar" ] && comprobar_firma $comprobar
+[ "$file" ] && firmar $file
+[ "$encriptacion" ] && cript_asim $encriptacion

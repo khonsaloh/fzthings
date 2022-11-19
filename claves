@@ -84,8 +84,9 @@ _claves_privadas() {
 }
 
 _claves_publicas() {
-  gpg --keyid-format LONG -k --with-colons \
-    | grep '^uid' | cut -d':' -f2,10 | tr ':' ' '
+  gpg --list-keys --with-colons | sed -n -e '/^pub/,/^uid/p' \
+    | grep -v 'fpr'\
+    | grep '^uid' | cut -d':' -f2,10 | tr ':' ' ' 
 }
 
 _listar_archivos() {
@@ -134,6 +135,7 @@ main() {
 #[${set_fastest_mirrors^^}] set fastest mirrors [${list_installed^^}] list Installed
 #")
 #"
+
   _claves_privadas | fzf --preview="gpg --list-key {2..}" \
     --header="$HEADER" \
     --prompt='LLAVERO PRIVADO: ' \
