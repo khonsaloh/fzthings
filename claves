@@ -47,9 +47,9 @@ _importar_llave() {
 }
 
 _eliminar_clave() {
-  gpg --delete-secret-keys $1
-  gpg --delete-keys "$1"
-  ! gpg --list-keys "$1" \
+  gpg --delete-secret-keys $1 2>/dev/null
+  gpg --delete-keys "$1" 2>/dev/null
+  ! gpg --list-keys "$1" 2>/dev/null \
     && notify-send "clave eliminada con exito"
 }
 
@@ -106,6 +106,12 @@ _revocar_clave() {
   gpg --keyserver hkps://keyserver.ubuntu.com --send-keys $huella
 }
 
+_copiar_portapapeles() {
+  echo \"$1\" | xargs gpg --list-key --with-colons {} \
+     | grep -m1 '^fpr' | cut -d':' -f10 | xclip -r -sel clipboard \
+     && notify-send "copiado huella de llave al portapapeles" 2>/dev/null
+}
+
 _search_key() {
   uid=$(xclip -o | cut -d'/' -f2)
   gpg --keyserver hkps://keyserver.ubuntu.com --search-keys $uid
@@ -143,6 +149,7 @@ main() {
     --bind "ctrl-u:execute(_subir_clave {2..})" \
     --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_privadas)" \
     --bind "ctrl-m:execute(gpg --with-colons --list-key {2..})" \
+    --bind "enter:execute:_copiar_portapapeles {2..}" \
     --bind "tab:abort" \
     --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}"
 }
@@ -161,6 +168,7 @@ sec() {
   --bind "ctrl-r:execute(_search_key)+reload(_claves_publicas)" \
   --bind "ctrl-e:execute(gpg --edit-key {2..})" \
   --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_publicas)" \
+  --bind "enter:execute:_copiar_portapapeles {2..}" \
   --bind "tab:execute(main)" \
   --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}"
 }
@@ -168,6 +176,6 @@ sec() {
 export -f main sec _verificar_firma_digital _claves_privadas \
   _claves_publicas _crear_par_de_llaves _desencriptar \
   _firmar_digitalmente _eliminar_clave _exportar_clave _subir_clave \
-  _listar_archivos _importar_llave _search_key _revocar_clave
+  _listar_archivos _importar_llave _search_key _revocar_clave _copiar_portapapeles
 
 sec
