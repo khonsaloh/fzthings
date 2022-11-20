@@ -24,9 +24,9 @@ tab=tab
 key_gen=ctrl-g
 del_key=ctrl-d
 exp_key=ctrl-x
-imp_key=ctrl-i
+imp_key=ctrl-k
 upload_key=ctrl-u
-search_key=ctrl-k
+#search_key=ctrl-k
 
 export HEADER="$(_colorize "[$key_gen] Generar llaves [$del_key] Eliminar clave
 [$exp_key] Exportar llave [$tab] cambio entre llaveros [$revok_key] Revocar clave
@@ -41,9 +41,12 @@ _desencriptar(){
   gpg --decrypt "$archivo"
 }
 
+_listar_archivos() {
+  find . -maxdepth 1 -name '.git*' -prune -o -printf '%P\n' -type f 
+}
+
 _importar_llave() {
-  _listar_archivos && gpg --import $archivo \
-    && notify-send "llave $archivo importada con exito"
+  _listar_archivos | fzf | xargs -r gpg --import 
 }
 
 _eliminar_clave() {
@@ -87,11 +90,6 @@ _claves_publicas() {
   gpg --list-keys --with-colons | sed -n -e '/^pub/,/^uid/p' \
     | grep -v 'fpr'\
     | grep '^uid' | cut -d':' -f2,10 | tr ':' ' ' 
-}
-
-_listar_archivos() {
-  archivo=$(find . -maxdepth 1 -printf '%P\n' \
-    | fzf)
 }
 
 _revocar_clave() {
@@ -144,10 +142,9 @@ main() {
     --bind "ctrl-f:execute(_firmar_digitalmente)" \
     --bind "ctrl-e:execute(gpg --edit-key {2..})" \
     --bind "ctrl-d:execute(_eliminar_clave)+reload(_claves_privadas)" \
-    --bind "ctrl-s:execute(_listar_archivos)" \
     --bind "ctrl-a:execute(_revocar_clave {2..})+reload(_claves_privadas)" \
     --bind "ctrl-r:execute(_search_key)+reload(_claves_privadas)" \
-    --bind "ctrl-i:execute(_importar_llave)+reload(_claves_privadas)" \
+    --bind "ctrl-k:execute(_importar_llave)+reload(_claves_privadas)" \
     --bind "ctrl-u:execute(_subir_clave {2..})" \
     --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_privadas)" \
     --bind "ctrl-m:execute(gpg --with-colons --list-key {2..})" \
@@ -166,11 +163,11 @@ sec() {
   --bind "ctrl-a:execute(_revocar_clave {2..})+reload(_claves_publicas)" \
   --bind "ctrl-x:execute(gpg --output {2..}.pgp --armor --export {2..} )" \
   --bind "ctrl-u:execute(_subir_clave {2..})" \
-  --bind "ctrl-i:execute(_importar_llave)+reload(_claves_publicas)" \
   --bind "ctrl-r:execute(_search_key)+reload(_claves_publicas)" \
   --bind "ctrl-e:execute(gpg --edit-key {2..})" \
   --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_publicas)" \
   --bind "enter:execute:_copiar_portapapeles {2..}" \
+  --bind "ctrl-k:execute(_importar_llave )+reload(_claves_publicas)" \
   --bind "tab:execute(main)" \
   --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}"
 }
@@ -178,6 +175,6 @@ sec() {
 export -f main sec _verificar_firma_digital _claves_privadas \
   _claves_publicas _crear_par_de_llaves _desencriptar \
   _firmar_digitalmente _eliminar_clave _exportar_clave _subir_clave \
-  _listar_archivos _importar_llave _search_key _revocar_clave _copiar_portapapeles
+  _listar_archivos _importar_llave _revocar_clave _copiar_portapapeles _search_key
 
 sec
