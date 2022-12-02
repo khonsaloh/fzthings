@@ -2,6 +2,7 @@
 
 trap 'exit 0' INT
 
+key_server='hkps://keyserver.ubuntu.com'
 # keyservers
 #hkps://pgp.surf.nl (ex-SKS pool)
 #hkp://pgp.rediris.es
@@ -88,7 +89,6 @@ _claves_privadas() {
 
 _claves_publicas() {
   gpg --list-keys --with-colons | sed -n -e '/^pub/,/^uid/p' \
-    | grep -v 'fpr'\
     | grep '^uid' | cut -d':' -f2,10 | tr ':' ' ' 
 }
 
@@ -100,9 +100,9 @@ _revocar_clave() {
     | grep -m1 '^fpr' | cut -d':' -f10)
   gpg --output revoke.asc --gen-revoke $huella || return
   gpg --import revoke.asc
-  gpg --keyserver hkps://keyserver.ubuntu.com \
+  gpg --keyserver $key_server \
     --search-keys $huella
-  gpg --keyserver hkps://keyserver.ubuntu.com --send-keys $huella
+  gpg --keyserver $key_server --send-keys $huella
 }
 
 _copiar_portapapeles() {
@@ -113,7 +113,7 @@ _copiar_portapapeles() {
 
 _search_key() {
   uid=$(xclip -o | cut -d'/' -f2)
-  gpg --keyserver hkps://keyserver.ubuntu.com --search-keys $uid
+  gpg --keyserver $key_server --search-keys $uid
 #  gpg --list-key $uid \
 #    && notify-send "llave importada correctamente"
 }
@@ -124,7 +124,7 @@ _subir_clave() {
   [ "$respuesta" = 's' ] || return
   llave=$(gpg --with-colons --list-key $1 \
     | grep -m 1 '^fpr'| cut -d':' -f10)
-  [ "$llave" ] && gpg --keyserver keyserver.ubuntu.com --send-keys $llave
+  [ "$llave" ] && gpg --keyserver $key_server --send-keys $llave
 }
 
 main() {
