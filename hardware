@@ -1,0 +1,14 @@
+#!/bin/sh
+
+activar_driver() {
+  sudo modprobe $1
+}
+
+desactivar_driver() {
+  sudo modprobe -r $1
+}
+
+lspci | fzf \
+        --with-nth 2.. \
+         --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}" \
+        --preview "printf '\033[0;33m\n'; lspci -kvv -s {1}"
