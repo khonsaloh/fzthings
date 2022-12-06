@@ -1,0 +1,112 @@
+#!/bin/bash
+
+export SHELL=/bin/bash
+leader_key='ctrl'
+
+_colorize() {
+  local string
+  string="${1//\[/\\033\[0;32m\[}"
+  string="${string//\]/\]\\033\[0m}"
+  printf '%b\n' "${string}"
+}
+
+export -f _colorize
+
+HEADER="$(_colorize "[ctrl-n] crear usuario [ctrl-e] eliminar_usuario
+[$leader_key-b] eliminar grupo [ctrl-e] renombar usuario
+[ctrl-n] cambiar shell para usuario [ctrl-p] cambiar contraseña
+[ctrl-n] crear grupo [ctrl-p] añadir usuario a grupo
+[ctrl-n] eliminar usario de grupo
+")
+
+"
+
+crear_usuario() {
+	printf "nombre del usuario nuevo: "
+  read -r usuario \
+    && sudo useradd -m "$usuario"
+}
+
+eliminar_usuario() {
+  clear
+  printf '%s' "eliminar el usuario $1? (s/n)"
+  read -r respuesta
+  [ "$respuesta" = 's' ] \
+    && sudo userdel -r "$1"
+}
+
+cambiar_contrasenia() {
+  printf '%s\n' "cambio de contraseña para $1"
+    sudo passwd "$1"
+}
+
+renombrar_usuario() {
+    printf '%s' "nombre nuevo para el usuario $1: "
+    read -r nombre \
+    && sudo usermod -l "$nombre" "$1"
+}
+
+crear_grupo() {
+  printf '%s' "nombre que tendra nuevo grupo: "
+  read -r grupo && sudo groupadd "$grupo"
+}
+
+borrar_grupo() {
+  printf '%s' "seguro que quieres elimnar el grupo $1? (s/n)"
+  read -r respuesta
+  [ "$respuesta" = 's' ] \
+    && sudo groupdel "$1"
+}
+
+anadir_usuario_a_grupo() {
+  a=$(cut -d ':' -f1 /etc/group | fzf \
+    --no-info \
+    --prompt="elige grupo a donde añadir $1" ) || exit 0
+    sudo usermod -g "$1" "$a"
+}
+
+eliminar_usuario_de_grupo() {
+  b=$(cut -d':' -f1 /etc/group | fzf \
+    --cycle \
+    --height=15 \
+    --prompt="de que grupo quieres eliminar a $1? ") \
+    && sudo gpasswd -d "$1" "$b"
+}
+
+cambiar_shell_usuario() {
+  b=$(grep -v '#' /etc/shells | fzf \
+    --prompt="elige nueva shell para $1: " \
+    --no-info \
+    --cycle) \
+    && sudo usermod --shell "$b" "$1"
+}
+
+eliminar_grupo() {
+  printf '%s' "seguro de eliminar el grupo $1? (s/n)"
+  read -r respuesta
+  [ "$respuesta" = 's' ] \
+    && groupdel $1
+}
+
+main() {
+  { echo usuario grupo
+    cut -d: -f1 /etc/passwd | xargs groups; }
+}
+
+export -f crear_usuario eliminar_usuario \
+  renombrar_usuario cambiar_shell_usuario anadir_usuario_a_grupo \
+  eliminar_usuario_de_grupo crear_grupo eliminar_grupo main cambiar_contrasenia
+
+main \
+    | fzf --header-lines 1 \
+    --inline-info \
+    --prompt='elige opcion: ' \
+    --header "$HEADER" \
+    --bind "ctrl-n:execute(crear_usuario {})+reload(main)" \
+    --bind "ctrl-e:execute(eliminar_usuario {1})+reload(main)" \
+    --bind "ctrl-p:execute:cambiar_contrasenia {1}" \
+    --bind "ctrl-g:execute:renombrar_usuario {1}+reload(main)" \
+    --bind "ctrl-t:execute:cambiar_shell_usuario {1}" \
+    --bind "ctrl-a:execute(eliminar_grupo {1})+reload(main)" \
+    --bind "ctrl-b:execute(crear_grupo {})"
+    #--preview "grep '^{1}' /etc/passwd | tr ':' ' '" \
