@@ -23,19 +23,19 @@ manage gpg keys
 inspired by [gpg-tui](https://github.com/orhun/gpg-tui)
 
 ### nf-dl
-based on ![getnf](https://github.com/ronniedroid/getnf)
+based on [getnf](https://github.com/ronniedroid/getnf)
 
 ### gitto
 was the very first to be created, I didnt know the existence of `forgit` or `git-fuzzy` (just to mention few of them). The only I don't actively use
 
 ### packend
 apt-get front end 
-In the same wave like ![fuzzypkg](https://github.com/zdykstra/fuzzypkg)
+In the same wave like [fuzzypkg](https://github.com/zdykstra/fuzzypkg)
 
 ### gestor-usuarios
 just to quickly manage users and groups on local and server
 
 ### drivers
-inspired by ![kmon](https://github.com/orhun/kmon)
+inspired by [kmon](https://github.com/orhun/kmon)
 
 
