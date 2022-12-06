@@ -1,12 +1,6 @@
 ## Buy me a coffee
 <a href="https://www.paypal.me/60nza10"><img src="https://img.shields.io/badge/don-paypal-blue"></a> 
 
-##
-<p align="center">
-<img src="./assets/sample.gif" alt="sample" width="100%">>
-</p>
-
-# h1
 some fuzzy based scripts for system management, cause I dont like reading manpages and I do like fzf
 
 ## Install
@@ -26,7 +20,7 @@ sudo make uninstall
 
 ### llaves-pgp 
 manage gpg keys
-inspired by ![gpg-tui](https://github.com/orhun/gpg-tui)
+inspired by [gpg-tui](https://github.com/orhun/gpg-tui)
 
 ### nf-dl
 based on ![getnf](https://github.com/ronniedroid/getnf)
