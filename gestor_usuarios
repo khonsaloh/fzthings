@@ -108,5 +108,6 @@ main \
     --bind "ctrl-g:execute:renombrar_usuario {1}+reload(main)" \
     --bind "ctrl-t:execute:cambiar_shell_usuario {1}" \
     --bind "ctrl-a:execute(eliminar_grupo {1})+reload(main)" \
+    --preview "grep '^{1}' /etc/passwd | tr ':' ' '" \
+    --preview-window="down:wrap:1" \
     --bind "ctrl-b:execute(crear_grupo {})"
-    #--preview "grep '^{1}' /etc/passwd | tr ':' ' '" \
