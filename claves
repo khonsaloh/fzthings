@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 
-trap 'exit 0' INT
+#trap "pkill -f ${0##*/}" INT
+
+#trap "kill $(jobs -p)"  HUP INT QUIT TERM PWR EXIT
+#pid=$$
 
 key_server='hkps://keyserver.ubuntu.com'
 # keyservers
 #hkps://pgp.surf.nl (ex-SKS pool)
 #hkp://pgp.rediris.es
 
-SHELL=$(command -v bash)
+SHELL=/bin/bash
+trap "kill $$"  HUP INT PWR EXIT
 
 _colorize() {
   local string
@@ -150,7 +154,7 @@ main() {
     --bind "ctrl-m:execute(gpg --with-colons --list-key {2..})" \
     --bind "enter:execute:_copiar_portapapeles {2..}" \
     --bind "tab:abort" \
-    --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}"
+    --preview-window="down:wrap:10"
 }
 
 sec() {
@@ -169,7 +173,7 @@ sec() {
   --bind "enter:execute:_copiar_portapapeles {2..}" \
   --bind "ctrl-k:execute(_importar_llave )+reload(_claves_publicas)" \
   --bind "tab:execute(main)" \
-  --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}"
+  --preview-window="down:wrap:10"
 }
 
 export -f main sec _verificar_firma_digital _claves_privadas \

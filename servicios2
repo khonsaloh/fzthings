@@ -1,0 +1,39 @@
+#!/bin/sh
+
+[ -d /run/systemd/system ] && service=systemd
+[ -f /run/runit.stopit ] && service=runit
+
+service_path='/var/service'
+sysvinit='/etc/init.d'
+
+runit_activate(){
+  sudo sv $service_path/*
+}
+
+runit_stop() {
+  sudo find $service_path/* | fzf --cycle \
+    | xargs -r -I'{}' rm $service_path/'{}'
+}
+
+runit_activate() {
+  sudo find /etc/sv \
+    | fzf --cycle | xargs -r ln -s $service_path
+}
+
+#sudo service --status-all 
+#sv=$(sudo find $sysvinit -type f -printf '%P\n' | fzf) || exit 0
+
+#sudo $sysvinit/$sv restart
+
+
+sysvinit_status() {
+  sudo service --status-all >/tmp/status 2>&1 & wait
+}
+
+[ -z "$service" ] && sysvinit_status; \
+  fzf \
+  --header "[ctrl-b] restart [ctrl-n] stop [ctrl-p] enable" \
+  --bind "ctrl-b:execute(sudo /etc/init.d/{-1} restart)+reload(sysvinit_status)" \
+  --bind "ctrl-n:execute(sudo /etc/init.d/{-1} stop)+reload(sysvinit_status)" \
+  --bind "ctrl-p:execute(sudo /etc/init.d/{-1} enable)+reload(sysvinit_status)" \
+  --cycle < /tmp/status
