@@ -35,6 +35,9 @@ In the same wave like [fuzzypkg](https://github.com/zdykstra/fuzzypkg)
 ### gestor-usuarios
 just to quickly manage users and groups on local and server
 
+### servicios
+manage services
+
 ### drivers
 inspired by [kmon](https://github.com/orhun/kmon)
 
