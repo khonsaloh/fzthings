@@ -20,7 +20,7 @@ runit_enable() {
 }
 
 runit_disable() {
-  sudo rm /var/service/$1
+	sudo rm /var/service/$1
 }
 
 #sudo service --status-all

@@ -22,28 +22,28 @@ HEADER="$(_colorize "[ctrl-n] crear usuario [ctrl-e] eliminar_usuario
 "
 
 crear_usuario() {
-	printf "nombre del usuario nuevo: "
-  read -r usuario \
-    && sudo useradd -m "$usuario"
+  printf "nombre del usuario nuevo: "
+  read -r usuario &&
+    sudo useradd -m "$usuario"
 }
 
 eliminar_usuario() {
   clear
   printf '%s' "eliminar el usuario $1? (s/n)"
   read -r respuesta
-  [ "$respuesta" = 's' ] \
-    && sudo userdel -r "$1"
+  [ "$respuesta" = 's' ] &&
+    sudo userdel -r "$1"
 }
 
 cambiar_contrasenia() {
   printf '%s\n' "cambio de contraseña para $1"
-    sudo passwd "$1"
+  sudo passwd "$1"
 }
 
 renombrar_usuario() {
-    printf '%s' "nombre nuevo para el usuario $1: "
-    read -r nombre \
-    && sudo usermod -l "$nombre" "$1"
+  printf '%s' "nombre nuevo para el usuario $1: "
+  read -r nombre &&
+    sudo usermod -l "$nombre" "$1"
 }
 
 crear_grupo() {
@@ -54,51 +54,53 @@ crear_grupo() {
 borrar_grupo() {
   printf '%s' "seguro que quieres elimnar el grupo $1? (s/n)"
   read -r respuesta
-  [ "$respuesta" = 's' ] \
-    && sudo groupdel "$1"
+  [ "$respuesta" = 's' ] &&
+    sudo groupdel "$1"
 }
 
 anadir_usuario_a_grupo() {
   a=$(cut -d ':' -f1 /etc/group | fzf \
     --no-info \
-    --prompt="elige grupo a donde añadir $1" ) || exit 0
-    sudo usermod -g "$1" "$a"
+    --prompt="elige grupo a donde añadir $1") || exit 0
+  sudo usermod -g "$1" "$a"
 }
 
 eliminar_usuario_de_grupo() {
   b=$(cut -d':' -f1 /etc/group | fzf \
     --cycle \
     --height=15 \
-    --prompt="de que grupo quieres eliminar a $1? ") \
-    && sudo gpasswd -d "$1" "$b"
+    --prompt="de que grupo quieres eliminar a $1? ") &&
+    sudo gpasswd -d "$1" "$b"
 }
 
 cambiar_shell_usuario() {
   b=$(grep -v '#' /etc/shells | fzf \
     --prompt="elige nueva shell para $1: " \
     --no-info \
-    --cycle) \
-    && sudo usermod --shell "$b" "$1"
+    --cycle) &&
+    sudo usermod --shell "$b" "$1"
 }
 
 eliminar_grupo() {
   printf '%s' "seguro de eliminar el grupo $1? (s/n)"
   read -r respuesta
-  [ "$respuesta" = 's' ] \
-    && groupdel $1
+  [ "$respuesta" = 's' ] &&
+    groupdel $1
 }
 
 main() {
-  { echo usuario grupo
-    cut -d: -f1 /etc/passwd | xargs groups; }
+  {
+    echo usuario grupo
+    cut -d: -f1 /etc/passwd | xargs groups
+  }
 }
 
 export -f crear_usuario eliminar_usuario \
   renombrar_usuario cambiar_shell_usuario anadir_usuario_a_grupo \
   eliminar_usuario_de_grupo crear_grupo eliminar_grupo main cambiar_contrasenia
 
-main \
-    | fzf --header-lines 1 \
+main |
+  fzf --header-lines 1 \
     --inline-info \
     --prompt='elige opcion: ' \
     --header "$HEADER" \
