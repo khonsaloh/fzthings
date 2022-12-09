@@ -9,9 +9,11 @@ key_server='hkps://keyserver.ubuntu.com'
 # keyservers
 #hkps://pgp.surf.nl (ex-SKS pool)
 #hkp://pgp.rediris.es
+echo $$ >/tmp/llaves.pid
 
 SHELL=/bin/bash
-trap "kill $$"  HUP INT PWR EXIT
+#trap "kill $$" HUP INT PWR EXIT
+trap "kill -9 $(cat /tmp/llaves.pid)" HUP INT PWR EXIT
 
 _colorize() {
   local string
@@ -41,24 +43,24 @@ export HEADER="$(_colorize "[$key_gen] Generar llaves [$del_key] Eliminar clave
 
 "
 
-_desencriptar(){
+_desencriptar() {
   _listar_archivos
   gpg --decrypt "$archivo"
 }
 
 _listar_archivos() {
-  find . -maxdepth 1 -name '.git*' -prune -o -printf '%P\n' -type f 
+  find . -maxdepth 1 -name '.git*' -prune -o -printf '%P\n' -type f
 }
 
 _importar_llave() {
-  _listar_archivos | fzf | xargs -r gpg --import 
+  _listar_archivos | fzf | xargs -r gpg --import
 }
 
 _eliminar_clave() {
   gpg --delete-secret-keys $1 2>/dev/null
   gpg --delete-keys "$1" 2>/dev/null
-  ! gpg --list-keys "$1" 2>/dev/null \
-    && notify-send "clave eliminada con exito"
+  ! gpg --list-keys "$1" 2>/dev/null &&
+    notify-send "clave eliminada con exito"
 }
 
 _encriptar_simetricamente() {
@@ -87,21 +89,21 @@ _crear_par_de_llaves() {
 }
 
 _claves_privadas() {
-  gpg --keyid-format LONG -K --with-colons \
-    | grep '^uid' | cut -d':' -f2,10 | tr ':' ' '
+  gpg --keyid-format LONG -K --with-colons |
+    grep '^uid' | cut -d':' -f2,10 | tr ':' ' '
 }
 
 _claves_publicas() {
-  gpg --list-keys --with-colons | sed -n -e '/^pub/,/^uid/p' \
-    | grep '^uid' | cut -d':' -f2,10 | tr ':' ' ' 
+  gpg --list-keys --with-colons | sed -n -e '/^pub/,/^uid/p' |
+    grep '^uid' | cut -d':' -f2,10 | tr ':' ' '
 }
 
 _revocar_clave() {
   printf '%s' "quieres dejar sin validez $1 (s/n) "
   read -r respuesta
   [ "$respuesta" = 's' ] || return
-  huella=$(gpg --list-keys --with-colons $1 \
-    | grep -m1 '^fpr' | cut -d':' -f10)
+  huella=$(gpg --list-keys --with-colons $1 |
+    grep -m1 '^fpr' | cut -d':' -f10)
   gpg --output revoke.asc --gen-revoke $huella || return
   gpg --import revoke.asc
   gpg --keyserver $key_server \
@@ -110,33 +112,33 @@ _revocar_clave() {
 }
 
 _copiar_portapapeles() {
-  echo \"$1\" | xargs gpg --list-key --with-colons {} \
-     | grep -m1 '^fpr' | cut -d':' -f10 | xclip -r -sel clipboard \
-     && notify-send "copiado huella de llave al portapapeles" 2>/dev/null
+  echo \"$1\" | xargs gpg --list-key --with-colons {} |
+    grep -m1 '^fpr' | cut -d':' -f10 | xclip -r -sel clipboard &&
+    notify-send "copiado huella de llave al portapapeles" 2>/dev/null
 }
 
 _search_key() {
   uid=$(xclip -o | cut -d'/' -f2)
   gpg --keyserver $key_server --search-keys $uid
-#  gpg --list-key $uid \
-#    && notify-send "llave importada correctamente"
+  #  gpg --list-key $uid \
+  #    && notify-send "llave importada correctamente"
 }
 
 _subir_clave() {
   printf '%s' "quieres compartir la llave $1? (s/n) "
   read -r respuesta
   [ "$respuesta" = 's' ] || return
-  llave=$(gpg --with-colons --list-key $1 \
-    | grep -m 1 '^fpr'| cut -d':' -f10)
+  llave=$(gpg --with-colons --list-key $1 |
+    grep -m 1 '^fpr' | cut -d':' -f10)
   [ "$llave" ] && gpg --keyserver $key_server --send-keys $llave
 }
 
 main() {
-#HEADER="$(_colorize "[${key_gen}] Generar llaves [Escape] Exit
-#[${tab^^}] moverse entre llaveros [${install_pkgs^^}] Install package
-#[${set_fastest_mirrors^^}] set fastest mirrors [${list_installed^^}] list Installed
-#")
-#"
+  #HEADER="$(_colorize "[${key_gen}] Generar llaves [Escape] Exit
+  #[${tab^^}] moverse entre llaveros [${install_pkgs^^}] Install package
+  #[${set_fastest_mirrors^^}] set fastest mirrors [${list_installed^^}] list Installed
+  #")
+  #"
 
   _claves_privadas | fzf --preview="gpg --list-key {2..}" \
     --header="$HEADER" \
@@ -158,22 +160,22 @@ main() {
 }
 
 sec() {
-  _claves_publicas| fzf --preview="gpg --list-key {2..}" \
-  --header="$HEADER" \
-  --prompt='LLAVERO PUBLICO: ' \
-  --inline-info \
-  --bind change:first \
-  --bind "ctrl-d:execute(_eliminar_clave {2..})+reload(_claves_publicas)" \
-  --bind "ctrl-a:execute(_revocar_clave {2..})+reload(_claves_publicas)" \
-  --bind "ctrl-x:execute(gpg --output {2..}.pgp --armor --export {2..} )" \
-  --bind "ctrl-u:execute(_subir_clave {2..})" \
-  --bind "ctrl-r:execute(_search_key)+reload(_claves_publicas)" \
-  --bind "ctrl-e:execute(gpg --edit-key {2..})" \
-  --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_publicas)" \
-  --bind "enter:execute:_copiar_portapapeles {2..}" \
-  --bind "ctrl-k:execute(_importar_llave )+reload(_claves_publicas)" \
-  --bind "tab:execute(main)" \
-  --preview-window="down:wrap:10"
+  _claves_publicas | fzf --preview="gpg --list-key {2..}" \
+    --header="$HEADER" \
+    --prompt='LLAVERO PUBLICO: ' \
+    --inline-info \
+    --bind change:first \
+    --bind "ctrl-d:execute(_eliminar_clave {2..})+reload(_claves_publicas)" \
+    --bind "ctrl-a:execute(_revocar_clave {2..})+reload(_claves_publicas)" \
+    --bind "ctrl-x:execute(gpg --output {2..}.pgp --armor --export {2..} )" \
+    --bind "ctrl-u:execute(_subir_clave {2..})" \
+    --bind "ctrl-r:execute(_search_key)+reload(_claves_publicas)" \
+    --bind "ctrl-e:execute(gpg --edit-key {2..})" \
+    --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_publicas)" \
+    --bind "enter:execute:_copiar_portapapeles {2..}" \
+    --bind "ctrl-k:execute(_importar_llave )+reload(_claves_publicas)" \
+    --bind "tab:execute(main)" \
+    --preview-window="down:wrap:10"
 }
 
 export -f main sec _verificar_firma_digital _claves_privadas \
