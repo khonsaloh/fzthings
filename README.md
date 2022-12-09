@@ -3,19 +3,6 @@
 
 some fuzzy based scripts for system management, cause I dont like reading manpages and I do like fzf
 
-## Install
-```sh
-git clone https://github.com/khonsaloh/fzthings
-cd fzthings
-sudo make install
-```
-
-## Uninstall
-#### inside the cloned repository
-```sh
-sudo make uninstall
-```
-
 ## files
 
 ### llaves-pgp 

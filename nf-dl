@@ -32,7 +32,7 @@ printf '%s\n' "$fonts" | while read -r font; do
 	else
 		echo "$font already installed" >&2
 	fi
-done | curl -Z -L -K - || {
+done | curl --parallel --parallel-max 10 -L -K - || {
 	echo "cannot download fonts"
 	exit 1
 }
