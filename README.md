@@ -17,7 +17,7 @@ was the very first to be created, I didnt know the existence of `forgit` or `git
 
 ### packend
 apt-get front end 
-In the same wave like [fuzzypkg](https://github.com/zdykstra/fuzzypkg)
+In the same line like [fuzzypkg](https://github.com/zdykstra/fuzzypkg)
 
 ### gestor-usuarios
 just to quickly manage users and groups on local and server
