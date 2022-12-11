@@ -10,5 +10,5 @@ desactivar_driver() {
 
 lspci | fzf \
         --with-nth 2.. \
-         --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}" \
-        --preview "printf '\033[0;33m\n'; lspci -kvv -s {1}"
+        --preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}" \
+        --preview "printf '\033[0;33m\n'; sudo lspci -kvv -s {1} | cut -f2-"
