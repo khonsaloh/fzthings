@@ -9,12 +9,12 @@ desactivar_driver() {
 }
 
 {
-	printf '%s\t' "kernel version: "
-	uname -r
+  printf '%b\t\t%b\n' "\033[0;35mkernel version:" "$(uname -r)\033[0m"
 	lsmod
 } | fzf \
 	--header-lines=2 \
 	--preview-window="down:wrap:${PREVIEW_BORDER:-border-sharp}" \
+  --ansi \
 	--bind "ctrl-b:execute(desactivar_driver)" \
 	--preview "printf '\033[0;33m\n'; sudo modinfo {1}"
 #--preview "printf '\033[0;33m\n'; sudo modinfo {1}" \

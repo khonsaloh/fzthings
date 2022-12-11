@@ -90,7 +90,7 @@ eliminar_grupo() {
 
 main() {
   {
-    echo usuario grupo
+    echo usuario : grupo
     cut -d: -f1 /etc/passwd | xargs groups
   }
 }
