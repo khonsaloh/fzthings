@@ -13,6 +13,7 @@ echo $$ >/tmp/llaves.pid
 
 SHELL=/bin/bash
 #trap "kill $$" HUP INT PWR EXIT
+trap '' TSTP
 trap "kill -9 $(cat /tmp/llaves.pid)" HUP INT PWR EXIT
 
 _colorize() {
@@ -38,18 +39,26 @@ upload_key=ctrl-u
 export HEADER="$(_colorize "[$key_gen] Generar llaves [$del_key] Eliminar clave
 [$exp_key] Exportar llave [$tab] cambio entre llaveros [$revok_key] Revocar clave
 [$edit_key] Editar llave [$recv_keys] Recibir llaves
-[$imp_key] Importar llave [$upload_key] Subir llave
+[$imp_key] Importar llave [$upload_key] Subir llave [ctrl-f] manejar archivos
 ")
 
 "
 
 _desencriptar() {
-  _listar_archivos
-  gpg --decrypt "$archivo"
+  gpg --decrypt "$1"
 }
 
 _listar_archivos() {
-  find . -maxdepth 1 -name '.git*' -prune -o -printf '%P\n' -type f
+  export HEADER="$(_colorize "[ctrl-n] Desencriptar [$del_key] Eliminar clave
+  [$exp_key] Exportar llave [$tab] cambio entre llaveros [$revok_key] Revocar clave
+  ")"
+  find . -maxdepth 1 -name '.git*' -prune -o -printf '%P\n' -type f |
+    fzf \
+    --cycle \
+    --bind "ctrl-n:execute(_desencriptar {})" \
+    --bind "ctrl-p:execute(_encriptar {})" \
+    --bind "ctrl-m:execute(_encriptar {})" \
+    --header="$HEADER"
 }
 
 _importar_llave() {
@@ -173,6 +182,7 @@ sec() {
     --bind "ctrl-e:execute(gpg --edit-key {2..})" \
     --bind "ctrl-g:execute(_crear_par_de_llaves)+reload(_claves_publicas)" \
     --bind "enter:execute:_copiar_portapapeles {2..}" \
+    --bind "ctrl-f:execute:_listar_archivos" \
     --bind "ctrl-k:execute(_importar_llave )+reload(_claves_publicas)" \
     --bind "tab:execute(main)" \
     --preview-window="down:wrap:10"
